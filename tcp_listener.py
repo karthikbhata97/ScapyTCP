@@ -34,6 +34,8 @@ class TCP_IPv4_Listener:
         self.dst_closed = False
         self.src_closed = False
 
+        self.connection_open = False
+
         self.basic_pkt = IP(src=self.src, dst=self.dst)/\
                          TCP(sport=self.sport, dport=self.dport)
 
@@ -44,6 +46,7 @@ class TCP_IPv4_Listener:
         
 
     def sniff_filter(self, pkt):
+
         return pkt.haslayer(IP) and \
                (not self.src or self.src == pkt[IP].dst) and \
                (not self.dst or self.dst == pkt[IP].src) and \
@@ -63,15 +66,22 @@ class TCP_IPv4_Listener:
             if pkt[TCP].seq >= self.next_ack:
                 self.data_share.put(pkt[Raw].load)
 
-        if pkt[TCP].flags == self.tcp_flags['TCP_SYN']:
+        if not self.connection_open and pkt[TCP].flags == self.tcp_flags['TCP_SYN']:
             self.next_ack = pkt[TCP].seq + 1
+
+            self.dst = pkt[IP].src
+            self.dport = pkt[TCP].sport
+
+            self.basic_pkt[IP].dst =  self.dst
+            self.basic_pkt[TCP].dport = self.dport
 
             pkt = self.basic_pkt
             pkt[TCP].flags = 'SA'
             pkt[TCP].seq = self.next_seq
             pkt[TCP].ack = self.next_ack
 
-            send(pkt)
+            send(pkt, verbose=self.verbose)
+            self.connection_open = True
             return
 
         self.next_seq = pkt[TCP].ack
@@ -96,16 +106,16 @@ class TCP_IPv4_Listener:
         return (ans if ans else 1)
 
     def send_ack_pkt(self):
-        pkt = self.basic_pkt
-        pkt[TCP].flags = 'A'
         while not (self.src_closed and self.dst_closed):
             with self.ack_lock:
                 if not self.ack_value:
                     pass
                 else:
+                    pkt = self.basic_pkt
+                    pkt[TCP].flags = 'A'
                     pkt[TCP].seq = self.ack_value[0]
                     pkt[TCP].ack = self.ack_value[1]
-                    send(pkt, verbose=self.verbose) 
+                    send(pkt, verbose=self.verbose)
                     self.ack_value = None
             sleep(0.1)
                     
@@ -150,6 +160,8 @@ class TCP_IPv6_Listener:
         self.dst_closed = False
         self.src_closed = False
 
+        self.connection_open = False
+
         self.basic_pkt = IPv6(src=self.src, dst=self.dst)/\
                          TCP(sport=self.sport, dport=self.dport)
 
@@ -179,15 +191,22 @@ class TCP_IPv6_Listener:
             if pkt[TCP].seq >= self.next_ack:
                 self.data_share.put(pkt[Raw].load)
 
-        if pkt[TCP].flags == self.tcp_flags['TCP_SYN']:
+        if not self.connection_open and pkt[TCP].flags == self.tcp_flags['TCP_SYN']:
             self.next_ack = pkt[TCP].seq + 1
+
+            self.dst = pkt[IP].src
+            self.dport = pkt[TCP].sport
+
+            self.basic_pkt[IP].dst =  self.dst
+            self.basic_pkt[TCP].dport = self.dport
 
             pkt = self.basic_pkt
             pkt[TCP].flags = 'SA'
             pkt[TCP].seq = self.next_seq
             pkt[TCP].ack = self.next_ack
 
-            send(pkt)
+            send(pkt, verbose=self.verbose)
+            self.connection_open = True
             return
 
         self.next_seq = pkt[TCP].ack
@@ -211,13 +230,13 @@ class TCP_IPv6_Listener:
 
 
     def send_ack_pkt(self):
-        pkt = self.basic_pkt
-        pkt[TCP].flags = 'A'
         while not (self.src_closed and self.dst_closed):
             with self.ack_lock:
                 if not self.ack_value:
                     pass
                 else:
+                    pkt = self.basic_pkt
+                    pkt[TCP].flags = 'A'
                     pkt[TCP].seq = self.ack_value[0]
                     pkt[TCP].ack = self.ack_value[1]
                     send(pkt, verbose=self.verbose) 

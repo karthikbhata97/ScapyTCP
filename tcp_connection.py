@@ -51,10 +51,11 @@ class TCP_IPv4:
 
 
     def handshake(self):
+        self.listener.connection_open = True
         self.send_pkt(self.basic_pkt, 'S')
 
     def send_data(self, data_layer):
-        pkt = self.basic_pkt
+        pkt = self.listener.basic_pkt
         self.send_pkt(pkt/data_layer, 'PA')
 
     def close(self):
@@ -63,7 +64,7 @@ class TCP_IPv4:
         self.listener_thread.join()
 
     def finish_pkt(self):
-        pkt = self.basic_pkt
+        pkt = self.listener.basic_pkt
         pkt[TCP].flags = 'FA'
 
         pkt[TCP].seq = self.listener.next_seq
@@ -119,10 +120,11 @@ class TCP_IPv6:
 
 
     def handshake(self):
+        self.listener.connection_open = True
         self.send_pkt(self.basic_pkt, 'S')
 
     def send_data(self, data_layer):
-        pkt = self.basic_pkt
+        pkt = self.listener.basic_pkt
         self.send_pkt(pkt/data_layer, 'PA')
 
     def close(self):
@@ -131,10 +133,12 @@ class TCP_IPv6:
         self.listener_thread.join()
 
     def finish_pkt(self):
-        pkt = self.basic_pkt
+        pkt = self.listener.basic_pkt
         pkt[TCP].flags = 'FA'
 
         pkt[TCP].seq = self.listener.next_seq
         pkt[TCP].ack = self.listener.next_ack
+
+        send(pkt, verbose=self.verbose)
 
  

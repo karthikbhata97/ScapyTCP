@@ -15,26 +15,8 @@ def listen_connection(conn):
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument('-s', '--source', help='Source IP:Port', nargs=1, required=True, type=str)
-    parser.add_argument('-d', '--dest', help='Destination IP:Port', nargs=1, required=True, type=str)
-
-    args = parser.parse_args()
-
-    source_ip = args.source[0].split(':')[0]
-    source_port = int(args.source[0].split(':')[1])
-
-    dest_ip = args.dest[0].split(':')[0]
-    dest_port = int(args.dest[0].split(':')[1])
-
-    print (source_ip, source_port, dest_ip, dest_port)
-
-    connection = TCP_IPv4(source_ip, dest_ip, source_port, dest_port)
-    connection.handshake()
-
-    listener_th = Thread(target=listen_connection, args=(connection,))
-    listener_th.start()
+    connection = None
+    listener_th = None
 
     def signal_handler(sig, frame):
         print('Exiting..')
@@ -44,14 +26,51 @@ if __name__ == '__main__':
 
     signal.signal(signal.SIGINT, signal_handler)
 
-    data = ""
+    parser = argparse.ArgumentParser()
 
-    while data != 'exit':
-        data = sys.stdin.readline()
-        if not data:
-            break
+    parser.add_argument('-s', '--source', help='Source IP:Port', nargs=1, required=True, type=str)
+    parser.add_argument('-d', '--dest', help='Destination IP:Port', nargs=1, required=False, type=str)
+    parser.add_argument('-l', '--listen', help='Accept connection', action='store_true')
 
-        connection.send_data(Raw(load=data))
+    args = parser.parse_args()
 
-    connection.close()
-    listener_th.join()
+    source_ip = args.source[0].split(':')[0]
+    source_port = int(args.source[0].split(':')[1])
+
+    if args.listen:
+        connection = TCP_IPv4(source_ip, None, source_port, None)
+        listener_th = Thread(target=listen_connection, args=(connection,))
+        listener_th.start()
+
+        print('Listening')
+        while not connection.listener.dst_closed:
+            data = sys.stdin.readline()
+            if not data:
+                break
+            connection.send_data(Raw(load=data))
+
+        connection.close() 
+        listener_th.join()
+        sys.exit(0)
+
+    else:
+        dest_ip = args.dest[0].split(':')[0]
+        dest_port = int(args.dest[0].split(':')[1])
+
+        connection = TCP_IPv4(source_ip, dest_ip, source_port, dest_port)
+        connection.handshake()
+
+        listener_th = Thread(target=listen_connection, args=(connection,))
+        listener_th.start()
+
+        data = ""
+
+        while data:
+            data = sys.stdin.readline()
+            if not data:
+                break
+
+            connection.send_data(Raw(load=data))
+
+        connection.close()
+        listener_th.join()
