@@ -10,7 +10,7 @@ class TCP_IPv4_Listener:
 
         self.src = src
         self.dst = dst
-        
+
         self.sport = sport
         self.dport = dport
 
@@ -20,13 +20,13 @@ class TCP_IPv4_Listener:
         self.verbose = verbose
 
         self.tcp_flags = {
-            'TCP_FIN': 0x01, 
-            'TCP_SYN': 0x02, 
-            'TCP_RST': 0x04, 
-            'TCP_PSH': 0x08, 
-            'TCP_ACK': 0x10, 
-            'TCP_URG': 0x20, 
-            'TCP_ECE': 0x40, 
+            'TCP_FIN': 0x01,
+            'TCP_SYN': 0x02,
+            'TCP_RST': 0x04,
+            'TCP_PSH': 0x08,
+            'TCP_ACK': 0x10,
+            'TCP_URG': 0x20,
+            'TCP_ECE': 0x40,
             'TCP_CWR': 0x80
         }
 
@@ -43,7 +43,7 @@ class TCP_IPv4_Listener:
         self.ack_value = None
         self.ack_thread = Thread(target=self.send_ack_pkt)
         self.ack_thread.start()
-        
+
 
     def sniff_filter(self, pkt):
 
@@ -118,7 +118,7 @@ class TCP_IPv4_Listener:
                     send(pkt, verbose=self.verbose)
                     self.ack_value = None
             sleep(0.1)
-                    
+
 
     def send_ack(self, pkt):
         self.next_ack = pkt[TCP].seq + self.get_next_ack(pkt)
@@ -136,7 +136,7 @@ class TCP_IPv6_Listener:
 
         self.src = src
         self.dst = dst
-        
+
         self.sport = sport
         self.dport = dport
 
@@ -146,13 +146,13 @@ class TCP_IPv6_Listener:
         self.verbose = verbose
 
         self.tcp_flags = {
-            'TCP_FIN': 0x01, 
-            'TCP_SYN': 0x02, 
-            'TCP_RST': 0x04, 
-            'TCP_PSH': 0x08, 
-            'TCP_ACK': 0x10, 
-            'TCP_URG': 0x20, 
-            'TCP_ECE': 0x40, 
+            'TCP_FIN': 0x01,
+            'TCP_SYN': 0x02,
+            'TCP_RST': 0x04,
+            'TCP_PSH': 0x08,
+            'TCP_ACK': 0x10,
+            'TCP_URG': 0x20,
+            'TCP_ECE': 0x40,
             'TCP_CWR': 0x80
         }
 
@@ -169,7 +169,7 @@ class TCP_IPv6_Listener:
         self.ack_value = None
         self.ack_thread = Thread(target=self.send_ack_pkt)
         self.ack_thread.start()
-        
+
 
     def sniff_filter(self, pkt):
         return pkt.haslayer(IPv6) and \
@@ -194,10 +194,10 @@ class TCP_IPv6_Listener:
         if not self.connection_open and pkt[TCP].flags == self.tcp_flags['TCP_SYN']:
             self.next_ack = pkt[TCP].seq + 1
 
-            self.dst = pkt[IP].src
+            self.dst = pkt[IPv6].src
             self.dport = pkt[TCP].sport
 
-            self.basic_pkt[IP].dst =  self.dst
+            self.basic_pkt[IPv6].dst =  self.dst
             self.basic_pkt[TCP].dport = self.dport
 
             pkt = self.basic_pkt
@@ -239,10 +239,10 @@ class TCP_IPv6_Listener:
                     pkt[TCP].flags = 'A'
                     pkt[TCP].seq = self.ack_value[0]
                     pkt[TCP].ack = self.ack_value[1]
-                    send(pkt, verbose=self.verbose) 
+                    send(pkt, verbose=self.verbose)
                     self.ack_value = None
             sleep(0.1)
-                    
+
 
     def send_ack(self, pkt):
         self.next_ack = pkt[TCP].seq + self.get_next_ack(pkt)
