@@ -6,7 +6,7 @@ from time import sleep
 
 class TCP_IPv4:
 
-    def __init__(self, src, dst, sport, dport, verbose=False):
+    def __init__(self, src, dst, sport, dport, seqno=0, ackno=0, verbose=False):
 
         self.src = src
         self.dst = dst
@@ -16,8 +16,8 @@ class TCP_IPv4:
 
         self.verbose = verbose
 
-        self.seq_no = 0
-        self.ack_no = 0
+        self.seq_no = seqno
+        self.ack_no = ackno
 
         self.tcp_flags = {
             'TCP_FIN': 0x01, 
@@ -45,6 +45,7 @@ class TCP_IPv4:
         pkt[TCP].seq = self.listener.next_seq
         pkt[TCP].ack = self.listener.next_ack
 
+        print(pkt.summary())
         while self.listener.next_seq == seqno:
             sr1(pkt, timeout=1, verbose=self.verbose)
             sleep(0.5) # Not required, insted use timeout in sr1
@@ -75,7 +76,7 @@ class TCP_IPv4:
 
 class TCP_IPv6:
 
-    def __init__(self, src, dst, sport, dport, verbose=False):
+    def __init__(self, src, dst, sport, dport, seqno=0, ackno=0, verbose=False):
 
         self.src = src
         self.dst = dst
@@ -85,8 +86,8 @@ class TCP_IPv6:
 
         self.verbose = verbose
 
-        self.seq_no = 0
-        self.ack_no = 0
+        self.seq_no = seqno
+        self.ack_no = ackno
 
         self.tcp_flags = {
             'TCP_FIN': 0x01, 

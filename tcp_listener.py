@@ -60,10 +60,12 @@ class TCP_IPv4_Listener:
 
 
     def manage_pkt(self, pkt):
+        if pkt[TCP].seq < self.next_ack:
+            return
 
         if pkt.haslayer(Raw):
             # print (pkt[TCP].seq, self.next_ack)
-            if pkt[TCP].seq >= self.next_ack:
+            # if pkt[TCP].seq >= self.next_ack:
                 self.data_share.put(pkt[Raw].load)
 
         if not self.connection_open and pkt[TCP].flags == self.tcp_flags['TCP_SYN']:
@@ -86,7 +88,7 @@ class TCP_IPv4_Listener:
 
         self.next_seq = pkt[TCP].ack
 
-        if pkt[TCP].flags == self.tcp_flags['TCP_ACK']:
+        if pkt[TCP].flags == self.tcp_flags['TCP_ACK'] and Raw not in pkt:
             pass
         else:
             self.send_ack(pkt)
@@ -103,21 +105,28 @@ class TCP_IPv4_Listener:
         tcp_hdr_len = pkt.getlayer(TCP).dataofs * 32 / 8
         ans = total_len - ip_hdr_len - tcp_hdr_len
         ans = int(ans)
+        if pkt[TCP].flags & self.tcp_flags['TCP_FIN']:
+            ans += 1
         return (ans if ans else 1)
 
+
     def send_ack_pkt(self):
+        tmp_ack_val = None
         while not (self.src_closed and self.dst_closed):
             with self.ack_lock:
                 if not self.ack_value:
                     pass
                 else:
-                    pkt = self.basic_pkt
-                    pkt[TCP].flags = 'A'
-                    pkt[TCP].seq = self.ack_value[0]
-                    pkt[TCP].ack = self.ack_value[1]
-                    send(pkt, verbose=self.verbose)
+                    tmp_ack_val = self.ack_value
                     self.ack_value = None
-            sleep(0.1)
+
+            if tmp_ack_val:
+                pkt = self.basic_pkt
+                pkt[TCP].flags = 'A'
+                pkt[TCP].seq = tmp_ack_val[0]
+                pkt[TCP].ack = tmp_ack_val[1]
+                tmp_ack_val = None
+                send(pkt, verbose=self.verbose)
 
 
     def send_ack(self, pkt):
@@ -186,10 +195,13 @@ class TCP_IPv6_Listener:
 
     def manage_pkt(self, pkt):
 
+        if pkt[TCP].seq < self.next_ack:
+            return
+
         if pkt.haslayer(Raw):
             # print (pkt[TCP].seq, self.next_ack)
-            if pkt[TCP].seq >= self.next_ack:
-                self.data_share.put(pkt[Raw].load)
+            # if pkt[TCP].seq >= self.next_ack:
+            self.data_share.put(pkt[Raw].load)
 
         if not self.connection_open and pkt[TCP].flags == self.tcp_flags['TCP_SYN']:
             self.next_ack = pkt[TCP].seq + 1
@@ -211,7 +223,7 @@ class TCP_IPv6_Listener:
 
         self.next_seq = pkt[TCP].ack
 
-        if pkt[TCP].flags == self.tcp_flags['TCP_ACK']:
+        if pkt[TCP].flags == self.tcp_flags['TCP_ACK'] and Raw not in pkt:
             pass
         else:
             self.send_ack(pkt)
@@ -220,28 +232,35 @@ class TCP_IPv6_Listener:
             while self.ack_value:
                 pass
             self.dst_closed = True
+            print('destination closed')
 
 
     def get_next_ack(self, pkt):
         total_len = pkt.getlayer(IPv6).plen
         tcp_hdr_len = pkt.getlayer(TCP).dataofs * 32 / 8
         ans = int(total_len - tcp_hdr_len)
+        if pkt[TCP].flags & self.tcp_flags['TCP_FIN']:
+            ans += 1
         return (ans if ans else 1)
 
 
     def send_ack_pkt(self):
+        tmp_ack_val = None
         while not (self.src_closed and self.dst_closed):
             with self.ack_lock:
                 if not self.ack_value:
                     pass
                 else:
-                    pkt = self.basic_pkt
-                    pkt[TCP].flags = 'A'
-                    pkt[TCP].seq = self.ack_value[0]
-                    pkt[TCP].ack = self.ack_value[1]
-                    send(pkt, verbose=self.verbose)
+                    tmp_ack_val = self.ack_value
                     self.ack_value = None
-            sleep(0.1)
+
+            if tmp_ack_val:
+                pkt = self.basic_pkt
+                pkt[TCP].flags = 'A'
+                pkt[TCP].seq = tmp_ack_val[0]
+                pkt[TCP].ack = tmp_ack_val[1]
+                tmp_ack_val = None
+                send(pkt, verbose=self.verbose)
 
 
     def send_ack(self, pkt):
